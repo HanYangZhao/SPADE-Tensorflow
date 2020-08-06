@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib import slim
-from scipy import misc
+import imageio
 import os, random
 import numpy as np
 from glob import glob
@@ -195,7 +195,7 @@ def inverse_transform(images):
 
 
 def imsave(images, size, path):
-    return misc.imsave(path, merge(images, size))
+    return imageio.imsave(path, merge(images, size))
 
 def merge(images, size):
     h, w = images.shape[1], images.shape[2]
