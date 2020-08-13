@@ -1,13 +1,13 @@
     #!/bin/bash 
-    curl -L -o ADEChallengeData2016.zip  https://github.com/HanYangZhao/SPADE-Tensorflow/releases/download/aed20k/ADEChallengeData2016.zip
+    curl --retry 5 -L -o ADEChallengeData2016.zip  https://github.com/HanYangZhao/SPADE-Tensorflow/releases/download/aed20k/ADEChallengeData2016.zip
     unzip ADEChallengeData2016.zip
 
     mkdir -p dataset/AED20K
-    mv ADEChallengeData2016/images/training dataset/AED20K/image
+    mv ADEChallengeData2016/images/training dataset/ADE20K/image
 
-    mv ADEChallengeData2016/annotations/training dataset/AED20K/segmap/
+    mv ADEChallengeData2016/annotations/training dataset/ADE20K/segmap/
 
-    mkdir -p dataset/AED20K/segmap_test
+    mkdir -p dataset/ADE20K/segmap_test
     #copy random 5-10 files from the validation dataset to validation test set
     cp  ADEChallengeData2016/annotations/validation/ADE_val_000000{03,18,30,32,50}.png  dataset/AED20K/segmap_test
 
