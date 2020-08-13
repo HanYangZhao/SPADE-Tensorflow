@@ -1,7 +1,7 @@
 from ops import *
 from utils import *
 import time
-from tensorflow.contrib.data import prefetch_to_device, shuffle_and_repeat, map_and_batch
+from tensorflow.data.experimental import prefetch_to_device, shuffle_and_repeat, map_and_batch
 import numpy as np
 from tqdm import tqdm
 from vgg19_keras import VGGLoss
@@ -113,7 +113,7 @@ class SPADE(object):
 
     def image_encoder(self, x_init, reuse=False, scope='encoder'):
         channel = self.ch
-        with tf.variable_scope(scope, reuse=reuse):
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
             x = resize_256(x_init)
             x = conv(x, channel, kernel=3, stride=2, pad=1, use_bias=True, sn=self.sn, scope='conv')
             x = instance_norm(x, scope='ins_norm')
@@ -144,10 +144,10 @@ class SPADE(object):
 
     def generator(self, segmap, x_mean, x_var, random_style=False, reuse=False, scope="generator"):
         channel = self.ch * 4 * 4
-        with tf.variable_scope(scope, reuse=reuse):
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
             batch_size = segmap.get_shape().as_list()[0]
             if random_style :
-                x = tf.random_normal(shape=[batch_size, self.ch * 4])
+                x = tf.compat.v1.random_normal(shape=[batch_size, self.ch * 4])
             else :
                 x = z_sample(x_mean, x_var)
 
@@ -208,7 +208,7 @@ class SPADE(object):
 
     def discriminator(self, segmap, x_init, reuse=False, scope="discriminator"):
         D_logit = []
-        with tf.variable_scope(scope, reuse=reuse):
+        with tf.compat.v1.variable_scope(scope, reuse=reuse):
             for scale in range(self.n_scale):
                 feature_loss = []
                 channel = self.ch
@@ -296,7 +296,8 @@ class SPADE(object):
         return tf.reduce_mean(GP)
 
     def build_model(self):
-        self.lr = tf.placeholder(tf.float32, name='learning_rate')
+
+        self.lr = tf.compat.v1.placeholder(tf.float32, name='learning_rate')
 
         """ Input Image"""
         img_class = Image_data(self.img_height, self.img_width, self.img_ch, self.segmap_ch, self.dataset_path, self.augment_flag)
@@ -355,15 +356,15 @@ class SPADE(object):
         self.random_fake_x, _, _ = self.image_translate(segmap_img=self.real_x_segmap_onehot, random_style=True, reuse=True)
 
         """ Test """
-        self.test_segmap_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, len(img_class.color_value_dict)])
+        self.test_segmap_image = tf.compat.v1.placeholder(tf.float32, [1, self.img_height, self.img_width, len(img_class.color_value_dict)])
         self.random_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, random_style=True, reuse=True)
 
-        self.test_guide_image = tf.placeholder(tf.float32, [1, self.img_height, self.img_width, self.img_ch])
+        self.test_guide_image = tf.compat.v1.placeholder(tf.float32, [1, self.img_height, self.img_width, self.img_ch])
         self.guide_test_fake_x, _, _ = self.image_translate(segmap_img=self.test_segmap_image, x_img=self.test_guide_image, reuse=True)
 
 
         """ Training """
-        t_vars = tf.trainable_variables()
+        t_vars = tf.compat.v1.trainable_variables()
         G_vars = [var for var in t_vars if 'encoder' in var.name or 'generator' in var.name]
         D_vars = [var for var in t_vars if 'discriminator' in var.name]
 
@@ -380,31 +381,31 @@ class SPADE(object):
             g_lr = self.lr
             d_lr = self.lr
 
-        self.G_optim = tf.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_loss, var_list=G_vars)
-        self.D_optim = tf.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars)
+        self.G_optim = tf.compat.v1.train.AdamOptimizer(g_lr, beta1=beta1, beta2=beta2).minimize(self.g_loss, var_list=G_vars)
+        self.D_optim = tf.compat.v1.train.AdamOptimizer(d_lr, beta1=beta1, beta2=beta2).minimize(self.d_loss, var_list=D_vars)
 
         """" Summary """
-        self.summary_g_loss = tf.summary.scalar("g_loss", self.g_loss)
-        self.summary_d_loss = tf.summary.scalar("d_loss", self.d_loss)
+        self.summary_g_loss = tf.compat.v1.summary.scalar("g_loss", self.g_loss)
+        self.summary_d_loss = tf.compat.v1.summary.scalar("d_loss", self.d_loss)
 
-        self.summary_g_adv_loss = tf.summary.scalar("g_adv_loss", g_adv_loss)
-        self.summary_g_kl_loss = tf.summary.scalar("g_kl_loss", g_kl_loss)
-        self.summary_g_vgg_loss = tf.summary.scalar("g_vgg_loss", g_vgg_loss)
-        self.summary_g_feature_loss = tf.summary.scalar("g_feature_loss", g_feature_loss)
+        self.summary_g_adv_loss = tf.compat.v1.summary.scalar("g_adv_loss", g_adv_loss)
+        self.summary_g_kl_loss = tf.compat.v1.summary.scalar("g_kl_loss", g_kl_loss)
+        self.summary_g_vgg_loss = tf.compat.v1.summary.scalar("g_vgg_loss", g_vgg_loss)
+        self.summary_g_feature_loss = tf.compat.v1.summary.scalar("g_feature_loss", g_feature_loss)
 
 
         g_summary_list = [self.summary_g_loss, self.summary_g_adv_loss, self.summary_g_kl_loss, self.summary_g_vgg_loss, self.summary_g_feature_loss]
         d_summary_list = [self.summary_d_loss]
 
-        self.G_loss = tf.summary.merge(g_summary_list)
-        self.D_loss = tf.summary.merge(d_summary_list)
+        self.G_loss = tf.compat.v1.summary.merge(g_summary_list)
+        self.D_loss = tf.compat.v1.summary.merge(d_summary_list)
 
     def train(self):
         # initialize all variables
-        tf.global_variables_initializer().run()
+        tf.compat.v1.ConditionalAccumulatorglobal_variables_initializer().run()
 
         # saver to save model
-        self.saver = tf.train.Saver(max_to_keep=20)
+        self.saver = tf.compat.v1.train.Saver(max_to_keep=20)
 
         # summary writer
         self.writer = tf.summary.FileWriter(self.log_dir + '/' + self.model_dir, self.sess.graph)
@@ -571,6 +572,29 @@ class SPADE(object):
                 index.write("</tr>")
 
         index.close()
+
+    def single_image_test(self,sample_file):
+        tf.global_variables_initializer().run()
+
+        self.saver = tf.compat.v1.train.Saver()
+        could_load, checkpoint_counter = self.load(self.checkpoint_dir)
+        self.result_dir = os.path.join(self.result_dir, self.model_dir)
+        check_folder(self.result_dir)
+
+        if could_load:
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
+
+        sample_image = load_segmap(self.dataset_path, sample_file, self.img_width, self.img_height, self.segmap_ch)
+        file_name = os.path.basename(sample_file).split(".")[0]
+        file_extension = os.path.basename(sample_file).split(".")[1]
+
+        for i in range(self.num_style) :
+            image_path = os.path.join(self.result_dir, '{}_style{}.{}'.format(file_name, i, file_extension))
+
+            fake_img = self.sess.run(self.random_test_fake_x, feed_dict={self.test_segmap_image : sample_image})
+            save_images(fake_img, [1, 1], image_path)
 
     def guide_test(self):
         tf.global_variables_initializer().run()

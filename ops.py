@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow.contrib as tf_contrib
 from utils import pytorch_xavier_weight_factor, pytorch_kaiming_weight_factor
-
 ##################################################################################
 # Initialization
 ##################################################################################
@@ -65,7 +64,7 @@ weight_regularizer_fully = None
 ##################################################################################
 
 def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True, sn=False, scope='conv_0'):
-    with tf.variable_scope(scope):
+    with tf.compat.v1.variable_scope(scope):
         if pad > 0:
             h = x.get_shape().as_list()[1]
             if h % stride == 0:
@@ -84,12 +83,12 @@ def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True,
                 x = tf.pad(x, [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]], mode='REFLECT')
 
         if sn:
-            w = tf.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
+            w = tf.compat.v1.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels], initializer=weight_init,
                                 regularizer=weight_regularizer)
             x = tf.nn.conv2d(input=x, filter=spectral_norm(w),
                              strides=[1, stride, stride, 1], padding='VALID')
             if use_bias:
-                bias = tf.get_variable("bias", [channels], initializer=tf.constant_initializer(0.0))
+                bias = tf.compat.v1.get_variable("bias", [channels], initializer=tf.constant_initializer(0.0))
                 x = tf.nn.bias_add(x, bias)
 
         else:
@@ -102,9 +101,9 @@ def conv(x, channels, kernel=4, stride=2, pad=0, pad_type='zero', use_bias=True,
 
 
 def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME', sn=False, scope='conv_0'):
-    with tf.variable_scope(scope):
+    with tf.compat.v1.variable_scope(scope):
         if padding.lower() == 'SAME'.lower():
-            with tf.variable_scope('mask'):
+            with tf.compat.v1.variable_scope('mask'):
                 _, h, w, _ = x.get_shape().as_list()
 
                 slide_window = kernel * kernel
@@ -118,9 +117,9 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
                 update_mask = tf.clip_by_value(update_mask, 0.0, 1.0)
                 mask_ratio = mask_ratio * update_mask
 
-            with tf.variable_scope('x'):
+            with tf.compat.v1.variable_scope('x'):
                 if sn:
-                    w = tf.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
+                    w = tf.compat.v1.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
                                         initializer=weight_init, regularizer=weight_regularizer)
                     x = tf.nn.conv2d(input=x, filter=spectral_norm(w), strides=[1, stride, stride, 1], padding=padding)
                 else:
@@ -131,17 +130,17 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
                 x = x * mask_ratio
 
                 if use_bias:
-                    bias = tf.get_variable("bias", [channels], initializer=tf.constant_initializer(0.0))
+                    bias = tf.compat.v1.get_variable("bias", [channels], initializer=tf.constant_initializer(0.0))
 
                     x = tf.nn.bias_add(x, bias)
                     x = x * update_mask
         else:
             if sn:
-                w = tf.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
+                w = tf.compat.v1.get_variable("kernel", shape=[kernel, kernel, x.get_shape()[-1], channels],
                                     initializer=weight_init, regularizer=weight_regularizer)
                 x = tf.nn.conv2d(input=x, filter=spectral_norm(w), strides=[1, stride, stride, 1], padding=padding)
                 if use_bias:
-                    bias = tf.get_variable("bias", [channels], initializer=tf.constant_initializer(0.0))
+                    bias = tf.compat.v1.get_variable("bias", [channels], initializer=tf.constant_initializer(0.0))
 
                     x = tf.nn.bias_add(x, bias)
             else:
@@ -153,16 +152,16 @@ def partial_conv(x, channels, kernel=3, stride=2, use_bias=True, padding='SAME',
         return x
 
 def fully_connected(x, units, use_bias=True, sn=False, scope='linear'):
-    with tf.variable_scope(scope):
+    with tf.compat.v1.variable_scope(scope):
         x = flatten(x)
         shape = x.get_shape().as_list()
         channels = shape[-1]
 
         if sn:
-            w = tf.get_variable("kernel", [channels, units], tf.float32,
+            w = tf.compat.v1.get_variable("kernel", [channels, units], tf.float32,
                                 initializer=weight_init, regularizer=weight_regularizer_fully)
             if use_bias:
-                bias = tf.get_variable("bias", [units],
+                bias = tf.compat.v1.get_variable("bias", [units],
                                        initializer=tf.constant_initializer(0.0))
 
                 x = tf.matmul(x, spectral_norm(w)) + bias
@@ -188,7 +187,7 @@ def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope='spa
     channel_in = x_init.get_shape().as_list()[-1]
     channel_middle = min(channel_in, channels)
 
-    with tf.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope) :
         x = spade(segmap, x_init, channel_in, use_bias=use_bias, sn=False, scope='spade_1')
         x = lrelu(x, 0.2)
         x = conv(x, channels=channel_middle, kernel=3, stride=1, pad=1, use_bias=use_bias, sn=sn, scope='conv_1')
@@ -205,7 +204,7 @@ def spade_resblock(segmap, x_init, channels, use_bias=True, sn=False, scope='spa
 
 
 def spade(segmap, x_init, channels, use_bias=True, sn=False, scope='spade') :
-    with tf.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope) :
         x = param_free_norm(x_init)
 
         _, x_h, x_w, _ = x_init.get_shape().as_list()
@@ -237,18 +236,18 @@ def param_free_norm(x, epsilon=1e-5) :
 ##################################################################################
 
 def resize_256(x) :
-    return tf.image.resize_bilinear(x, size=[256, 256])
+    return tf.compat.v1.image.resize_bilinear(x, size=[256, 256])
 
 def up_sample(x, scale_factor=2):
     _, h, w, _ = x.get_shape().as_list()
     new_size = [h * scale_factor, w * scale_factor]
-    return tf.image.resize_bilinear(x, size=new_size)
+    return tf.compat.v1.image.resize_bilinear(x, size=new_size)
 
 def down_sample(x, scale_factor_h, scale_factor_w) :
     _, h, w, _ = x.get_shape().as_list()
     new_size = [h // scale_factor_h, w // scale_factor_w]
 
-    return tf.image.resize_nearest_neighbor(x, size=new_size)
+    return tf.compat.v1.image.resize_nearest_neighbor(x, size=new_size)
 
 def down_sample_avg(x, scale_factor=2) :
     return tf.layers.average_pooling2d(x, pool_size=3, strides=scale_factor, padding='SAME')
@@ -284,7 +283,7 @@ def spectral_norm(w, iteration=1):
     w_shape = w.shape.as_list()
     w = tf.reshape(w, [-1, w_shape[-1]])
 
-    u = tf.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
+    u = tf.compat.v1.get_variable("u", [1, w_shape[-1]], initializer=tf.random_normal_initializer(), trainable=False)
 
     u_hat = u
     v_hat = None
@@ -387,7 +386,7 @@ def feature_loss(real, fake) :
     return tf.reduce_mean(loss)
 
 def z_sample(mean, logvar):
-    eps = tf.random_normal(tf.shape(mean), mean=0.0, stddev=1.0, dtype=tf.float32)
+    eps = tf.random.normal(tf.shape(mean), mean=0.0, stddev=1.0, dtype=tf.float32)
 
     return mean + tf.exp(logvar * 0.5) * eps
 
@@ -405,7 +404,7 @@ def regularization_loss(scope_name) :
     g_loss += regularization_loss('generator')
     d_loss += regularization_loss('discriminator')
     """
-    collection_regularization = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+    collection_regularization = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
 
     loss = []
     for item in collection_regularization :
