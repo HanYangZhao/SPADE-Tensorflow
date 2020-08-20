@@ -402,7 +402,7 @@ class SPADE(object):
 
     def train(self):
         # initialize all variables
-        tf.compat.v1.ConditionalAccumulatorglobal_variables_initializer().run()
+        tf.compat.v1.global_variables_initializer().run()
 
         # saver to save model
         self.saver = tf.compat.v1.train.Saver(max_to_keep=20)
